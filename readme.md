@@ -1,11 +1,11 @@
 # Syncret
 
-A PowerShell script that syncs your local secrets to a Azure Key Vault Secrets repo by comparing the values.
+A PowerShell script that syncs your local secrets to an Azure Key Vault Secrets repo by comparing the key/pair values.
 
 ## Features
 - Syncs your local secret to key vault
 - Checks each property values and prompts the for copy/update/delete
-- Password-protect your secrets so a single keyvault can be shared across different projects and teams
+- Password-encrypt your secrets so a single keyvault can be shared across different projects and teams
 
 ## Usage
 
@@ -23,8 +23,7 @@ A PowerShell script that syncs your local secrets to a Azure Key Vault Secrets r
 ### Important
 
 - Azure CLI is required. You must [install Azure CLI on Windows, Mac, or Linux](https://learn.microsoft.com/en-us/cli/azure/)
-- Make sure a user is logged in via the `az login` command
-- Make sure the logged in user has access to the key vault
+- Make sure a user is logged in via the `az login` command and has access to the key vault
 
 ## Known Issues
 - Seems to be only working fine on flat JSON structure/key pair
