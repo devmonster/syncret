@@ -23,6 +23,7 @@ function Import-Json {
         
         $content = Get-Content -Path $Path -Raw
         if ($content.Trim()) {
+            Write-Host "└─  Done"
             return $content | ConvertFrom-Json
         }
     }
@@ -35,14 +36,17 @@ function Get-SecretFromKeyVault {
         [string]$SecretName
     )
     try {
-        Write-Host "Fetching secret from Key Vault"
+        Write-Host "Fetching secret from Key Vault"       
+
         $secret = az keyvault secret show --vault-name $KeyVaultName --name $SecretName --query value -o tsv
+
         if ($secret) {
+            Write-Host "└─  Done"
             return $secret
         }
     }
     catch {
-        Write-Error "Failed to fetch secret from Key Vault: $_"
+        Write-Error "└─ ❌ Failed to fetch secret from Key Vault: $_"
     }
     return ""
 }
@@ -93,6 +97,8 @@ function Write-To-KeyVault {
     return
 }
 
+
+
 function Show-Menu {
 
     while ($true) {
@@ -101,7 +107,7 @@ function Show-Menu {
         Write-Host "Options:" 
         Write-Host "1. Copy LocalSecrets to Key Vault"
         Write-Host "2. Copy Key Vault to LocalSecrets"
-        Write-Host "3. Manual checks"
+        Write-Host "3. Manual Compare"
         Write-Host "4. Show LocalSecrets"
         Write-Host "5. Show Key Vault"
         Write-Host "6. Exit"
@@ -153,8 +159,9 @@ function Authenticate {
     $encryptedSecret = Get-SecretFromKeyVault -KeyVaultName $KeyVaultName -SecretName $SecretName
 
     do {
+        Write-Host
         Write-Host "Decrypting secret from Key Vault"
-        $password = Read-Host -AsSecureString "│ Enter the password to decrypt the secret"
+        $password = Read-Host -AsSecureString "├ Enter the password to decrypt the secret"
         $global:key = New-Key -Password $password
 
         $isAuthComplete = $false        
@@ -171,6 +178,9 @@ function Authenticate {
                     $global:KeyVaultValue = $plainTextSecret | ConvertFrom-Json
 
                     $isAuthComplete = $true
+
+                    Write-Host "└── Decryption complete"
+                    Write-Host
                 }
                 else {
                     $isAuthComplete = $false                   
@@ -190,20 +200,30 @@ function Authenticate {
             $retry = Read-Host "└── The decryption password is incorrect. Do you want to try again? (yes/no)"
             if ($retry -eq "no") {
 
-                Write-Host "│ Do you want to start over?"
-                Write-Host "│ ⚠ WARNING: This will overwrite the secret on the server."
+                Write-Host
+                Write-Host "Do you want to start over with a new secret?"
+                Write-Host "│ ⚠ WARNING: This will overwrite the secret on the server. This will affect users who are using the secret. If versioning is enabled on the Key Vault, you can revert to a previous version of the secret."
+                Write-Host
 
                 $confirm = Read-Host "├── Are you sure you want to proceed? (yes/no)"
 
                 if ($confirm -eq "yes") {
-                    $verifyKeyVaultName = Read-Host "│ Please enter the Key Vault name (' $KeyVaultName') to verify"
+                    $verifyKeyVaultName = Read-Host "│ Type the Key Vault name ('$KeyVaultName') to verify"
                     if ($verifyKeyVaultName -eq $KeyVaultName) {                           
 
-                        $password = Read-Host -AsSecureString "└── Enter a new password to encrypt the secret"
-                        $global:key = New-Key -Password $password
+                        do {
+                            $password = Read-Host -AsSecureString "├── Enter a new password to encrypt the secret"
+                            $confirmPassword = Read-Host -AsSecureString "└── Confirm the new password"
 
-                        $global:KeyVaultValue  = [PSCustomObject]@{}
-                        break
+                            if ([System.Runtime.InteropServices.Marshal]::PtrToStringBSTR([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($password)) -eq [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($confirmPassword))) {
+                                $global:key = New-Key -Password $password
+                                $global:KeyVaultValue  = [PSCustomObject]@{}
+                                break
+                            }
+                            else {
+                                Write-Host "├ ❌ Passwords do not match. Please try again."
+                            }
+                        } while ($true)
                     }
                     else {
                         Write-Host "└ ❌ Key Vault name does not match. Exiting."
@@ -230,8 +250,10 @@ function Compare-Json {
     $global:hasKeyVaultChanges = $false
     $global:hasLocalSecretsChanges = $false        
 
+    Write-Host "Starting Manual Compare"
+
     if ($LocalSecrets -eq $KeyVault) {
-        Write-Host "The Local and Key Vault versions are the same."
+        Write-Host "└─  The Local and Key Vault versions are the same."
         Write-Host 
         Write-Host         
     }
